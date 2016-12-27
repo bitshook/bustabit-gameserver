@@ -1,5 +1,6 @@
 var assert = require('better-assert');
 var crypto = require('crypto');
+var fs = require('fs');
 
 exports.isUUIDv4 = function(uuid) {
     return (typeof uuid === 'string') && uuid.match(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i);
@@ -70,7 +71,7 @@ function divisible(hash, mod) {
 // This will be the client seed of block 339300
 var clientSeed = '000000000000000007a9a31ff7f07463d91af6b5454241d5faf282e5e0fe1b3a';
 
-exports.crashPointFromHash = function(serverSeed) {
+exports.crashPointFromHash = function(serverSeed, houseEdge) {
     var hash = crypto.createHmac('sha256', serverSeed).update(clientSeed).digest('hex');
 
     // In 1 of 101 games the game crashes instantly.
@@ -81,5 +82,20 @@ exports.crashPointFromHash = function(serverSeed) {
     var h = parseInt(hash.slice(0,52/4),16);
     var e = Math.pow(2,52);
 
-    return Math.floor((100 * e - h) / (e - h));
+    return Math.floor((100 * e - houseEdge * h) / (e - h));
+};
+
+exports.getSettings = function(callback) {
+    var settings_file = '/usr/local/src/btc-settings.json';
+    return fs.readFile(settings_file, 'utf8', function(err, contents) {
+        if (err) {
+            console.error("[INTERNAL_ERROR] Failed to read " + settings_file + ", got error: " + err);
+            callback(err);
+        }
+
+        var settings = JSON.parse(contents);
+        Object.keys(settings).forEach(function(key) { settings[key] = settings[key].value });
+
+        callback(null, settings);
+    });
 };

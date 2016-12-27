@@ -127,10 +127,10 @@ exports.getLastGameInfo = function(callback) {
 
         var id = results.rows[0].id;
 
-        if (!id || id < 1e6) {
+        if (!id || id < 1e7) {
             return callback(null, {
-                id: 1e6 - 1,
-                hash: 'c1cfa8e28fc38999eaa888487e443bad50a65e0b710f649affa6718cfbfada4d'
+                id: 1e7 - 1,
+                hash: 'b9201c2ed8db02f5a49411c682e4041fa5039e1582c89b5411fdb2f0791b01ef'
             });
         }
 
@@ -320,15 +320,20 @@ exports.createGame = function(gameId, callback) {
         }
 
         var hash = results.rows[0].hash;
-        var gameCrash = lib.crashPointFromHash(hash);
-        assert(lib.isInt(gameCrash));
 
-        query('INSERT INTO games(id, game_crash) VALUES($1, $2)',
-            [gameId, gameCrash], function(err) {
-                if (err) return callback(err);
+        lib.getSettings(function(err, settings) {
+            if (err) return callback(err);
 
-                return callback(null, { crashPoint: gameCrash, hash: hash } );
-            });
+            var gameCrash = lib.crashPointFromHash(hash, 1); // settings.maximum_house_edge_percentage
+            assert(lib.isInt(gameCrash));
+
+            query('INSERT INTO games(id, game_crash) VALUES($1, $2)',
+                [gameId, gameCrash], function(err) {
+                    if (err) return callback(err);
+
+                    return callback(null, { crashPoint: gameCrash, hash: hash } );
+                });
+        });
     });
 };
 

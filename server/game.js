@@ -63,15 +63,18 @@ function Game(lastGameId, lastHash, bankroll, gameHistory) {
             self.startTime = new Date(Date.now() + restartTime);
             self.players = {}; // An object of userName ->  { user: ..., playId: ..., autoCashOut: ...., status: ... }
             self.gameDuration = Math.ceil(inverseGrowth(self.crashPoint + 1)); // how long till the game will crash..
-            self.maxWin = Math.round(self.bankroll * 0.03); // Risk 3% per game
 
-            self.emit('game_starting', {
-                game_id: self.gameId,
-                max_win: self.maxWin,
-                time_till_start: restartTime
+            lib.getSettings(function(err, settings) {
+                self.maxWin = Math.round(err ? 1e8 : settings.maximum_game_winnings * 100); // Risk set amount
+
+                self.emit('game_starting', {
+                    game_id: self.gameId,
+                    max_win: self.maxWin,
+                    time_till_start: restartTime
+                });
+
+                setTimeout(blockGame, restartTime);
             });
-
-            setTimeout(blockGame, restartTime);
         });
     }
 
@@ -89,26 +92,65 @@ function Game(lastGameId, lastHash, bankroll, gameHistory) {
     }
 
     function startGame() {
-        self.state = 'IN_PROGRESS';
-        self.startTime = new Date();
-        self.pending = {};
-        self.pendingCount = 0;
+        function after() {
+            self.state = 'IN_PROGRESS';
+            self.startTime = new Date();
+            self.pending = {};
+            self.pendingCount = 0;
 
-        var bets = {};
-        var arr = self.joined.getArray();
-        for (var i = 0; i < arr.length; ++i) {
-            var a = arr[i];
-            bets[a.user.username] = a.bet;
-            self.players[a.user.username] = a;
+            var bets = {};
+            var arr = self.joined.getArray();
+            for (var i = 0; i < arr.length; ++i) {
+                var a = arr[i];
+                bets[a.user.username] = a.bet;
+                self.players[a.user.username] = a;
+            }
+
+            self.joined.clear();
+
+            self.emit('game_started', bets);
+
+            self.setForcePoint();
+
+            callTick(0);
         }
 
-        self.joined.clear();
+        // Update game crash point depending on sum of bets
+        var sum = 0;
+        var arr = self.joined.getArray();
+        for (var i = 0; i < arr.length; ++i) {
+            sum += arr[i].bet;
+        }
 
-        self.emit('game_started', bets);
+        lib.getSettings(function(err, settings) {
+            if (err) return after();
 
-        self.setForcePoint();
+            var houseEdge = 1;
 
-        callTick(0);
+            var percentages = settings.maximum_house_edge_percentages.split("|");
+
+            for (var i = 0; i < percentages.length; i++) {
+                var parts = percentages[i].split(":");
+                var min_and_max = parts[0].split("-");
+                var this_house_edge = parts[1];
+                var min = min_and_max[0];
+                var max = min_and_max[1];
+
+                if (sum >= min * 100 && sum <= max * 100) {
+                    houseEdge = this_house_edge;
+                }
+            }
+
+            var gameCrash = lib.crashPointFromHash(self.hash, houseEdge);
+            assert(lib.isInt(gameCrash));
+
+            db.query('UPDATE games SET game_crash = $1 WHERE id = $2', [gameCrash, self.gameId], function(err) {
+                self.crashPoint = gameCrash;
+                self.gameDuration = Math.ceil(inverseGrowth(self.crashPoint + 1)); // how long till the game will crash..
+
+                after();
+            });
+        });
     }
 
     function callTick(elapsed) {

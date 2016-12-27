@@ -3,6 +3,17 @@ var socketio = require('socket.io');
 var database = require('./database');
 var lib = require('./lib');
 
+var refreshing_settings = {};
+
+function getSettings() {
+    return lib.getSettings(function(err, settings) {
+        if (err) return;
+        refreshing_settings = settings;
+    });
+}
+
+setInterval(getSettings, 60 * 1000);
+
 module.exports = function(server,game,chat) {
     var io = socketio(server);
 
@@ -108,8 +119,11 @@ module.exports = function(server,game,chat) {
                 return sendError(socket, '[place_bet] Must place a bet in multiples of 100, got: ' + amount);
             }
 
-            if (amount > 1e8) // 1 BTC limit
-                return sendError(socket, '[place_bet] Max bet size is 1 BTC got: ' + amount);
+            if (amount / 100 < refreshing_settings.minimum_bet_size)
+                return sendError(socket, '[place_bet] Min bet size is ' + (refreshing_settings.minimum_bet_size * 100) + ' got: ' + amount);
+
+            if (amount / 100 > refreshing_settings.maximum_bet_size)
+                return sendError(socket, '[place_bet] Max bet size is ' + (refreshing_settings.maximum_bet_size * 100) + ' got: ' + amount);
 
             if (!autoCashOut)
                 return sendError(socket, '[place_bet] Must Send an autocashout with a bet');

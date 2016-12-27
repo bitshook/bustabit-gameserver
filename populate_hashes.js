@@ -3,9 +3,9 @@ var db = require('./server/database');
 var lib = require('./server/lib');
 var _ = require('lodash');
 
-var offset = 1e6;
+var offset = 1e7;
 
-var games = 1e6;  // You might want to make this 10M for a prod setting..
+var games = 1e7;  // You might want to make this 10M for a prod setting..
 var game = games;
 var serverSeed = 'DO NOT USE THIS SEED';
 
