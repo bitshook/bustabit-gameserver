@@ -130,7 +130,7 @@ exports.getLastGameInfo = function(callback) {
         if (!id || id < 1e7) {
             return callback(null, {
                 id: 1e7 - 1,
-                hash: 'b9201c2ed8db02f5a49411c682e4041fa5039e1582c89b5411fdb2f0791b01ef'
+                hash: '215f0529a7b459db93fead2cc0cddfc4ceda10e0a0a972ba6774f133bd41bfa8'
             });
         }
 

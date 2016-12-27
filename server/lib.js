@@ -86,7 +86,7 @@ exports.crashPointFromHash = function(serverSeed, houseEdge) {
 };
 
 exports.getSettings = function(callback) {
-    var settings_file = '/usr/local/src/btc-settings.json';
+    var settings_file = '/usr/local/src/doge-settings.json';
     return fs.readFile(settings_file, 'utf8', function(err, contents) {
         if (err) {
             console.error("[INTERNAL_ERROR] Failed to read " + settings_file + ", got error: " + err);
